@@ -19,6 +19,7 @@ import io.reactivex.functions.BiFunction
 import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_fullscreen.*
+import java.time.chrono.ThaiBuddhistEra
 import java.util.concurrent.TimeUnit
 
 @SuppressLint("StaticFieldLeak")
@@ -81,7 +82,7 @@ class AsyncDataActivity : AppCompatActivity() {
         //flatMap()
 
         // 10. Rx multi-threading
-        //subScribeOn()
+        subScribeOn()
         //observeOn()
         //defaultScheduler()
 
@@ -89,7 +90,7 @@ class AsyncDataActivity : AppCompatActivity() {
         //asynchronousSumWithRx()
 
         // 12. asychronous stream with Rx
-        asynchronousStreamCombination()
+        //asynchronousStreamCombination()
 
         // 13. error handling
         errorHandling()
@@ -100,60 +101,71 @@ class AsyncDataActivity : AppCompatActivity() {
 
     }
 
+    @SuppressLint("CheckResult")
     private fun asynchronousStreamCombination() {
 
-        val range = Observable.range(1, 9)
-        val interval = Observable.interval(1, TimeUnit.SECONDS)
+        val firstNumObservable = observableByCreate()
 
-        val range2 = Observable.range(1,9)
-        val interval2 = Observable.interval(2, TimeUnit.SECONDS)
-
-
-//        val firstNumObservable = Observable.zip<Int,Long, Int> (range, interval, BiFunction{ number, _ ->
-//            number
-//        })
-//            .observeOn(AndroidSchedulers.mainThread())
-//            .doOnNext {
-//                tvFirstNum.showInt(it)
-
-               val firstNumObservable = Observable.create<Int> {
-                    for (i in 1..9) {
-                        Thread.sleep(1200)
-                        it.onNext(i)
-                    }
-                   it.onComplete()
-
-                }.subscribeOn(Schedulers.computation())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .doOnNext {
-                        tvFirstNum.showInt(it)
-            }
-
-        val secondNumObservable = Observable.zip<Int,Long, Int> (range2, interval2, BiFunction{ number, _ ->
-            number
-        })
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext {
-                tvSecondNum.showInt(it)
-            }
+        val secondNumObservable = observableByZippingRangeAndInterval()
 
         chronometer.start()
 
-        Observable.combineLatest<Int, Int, Int>(firstNumObservable, secondNumObservable, BiFunction{ firstNum, second ->
-            longBlockingSum(firstNum, second)
-        }).subscribeOn(Schedulers.io())
+        Observable.combineLatest<Int, Int, Int>(
+            firstNumObservable,
+            secondNumObservable,
+            BiFunction { firstNum, second ->
+                Log.d("CombineLatest", Thread.currentThread().name)
+                longBlockingSum(firstNum, second)
+            })
             .observeOn(AndroidSchedulers.mainThread())
-            .doOnComplete {
-                chronometer.stop()
+            .subscribe (
+                {
+                    tvResult.showInt(it)
+                },{
+                    chronometer.stop()
+                },{
+                    chronometer.stop()
+                }
+            )
+
+//        Observable.just(1)
+//            .observeOn(Schedulers.computation())
+//            .map { it == 1 }
+//            .subscribeOn(Schedulers.io())
+//            .subscribe {
+//                Log.d("onNext", "one is $it")
+//            }
+    }
+
+    private fun observableByCreate(): Observable<Int> {
+        return Observable.create<Int> {
+            for (i in 1..9) {
+                Thread.sleep(1200)
+                it.onNext(i)
             }
-            .subscribe {
-                tvResult.showInt(it)
-
-
+            it.onComplete()
+        }.subscribeOn(Schedulers.computation())
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+                tvFirstNum.showInt(it)
             }
-
+            .observeOn(Schedulers.computation())
 
     }
+
+    private fun observableByZippingRangeAndInterval(): Observable<Int> {
+        val range = Observable.range(1, 9)
+        val interval = Observable.interval(2, TimeUnit.SECONDS)
+
+        return Observable.zip<Int, Long, Int>(range, interval, BiFunction { number, _ -> number })
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext {
+                    tvSecondNum.showInt(it)
+                }
+            .observeOn(Schedulers.computation())
+
+    }
+
 
     private fun asynchronousSumWithRx() {
 
@@ -167,16 +179,18 @@ class AsyncDataActivity : AppCompatActivity() {
 
         chronometer.start()
 
-        Observable.zip<Int, Int, Int>(firstNumObservable, secondNumObservable, BiFunction{ firstNum, second ->
-            longBlockingSum(firstNum, second)
-        }).subscribeOn(Schedulers.computation())
+        Observable.zip<Int, Int, Int>(
+            firstNumObservable,
+            secondNumObservable,
+            BiFunction { firstNum, second ->
+                longBlockingSum(firstNum, second)
+            }).subscribeOn(Schedulers.computation())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
                 tvResult.showInt(it)
 
                 chronometer.stop()
             }
-
 
 
     }
@@ -196,6 +210,7 @@ class AsyncDataActivity : AppCompatActivity() {
 
     private fun subScribeOn() {
 
+
     }
 
     private fun flatMap() {
@@ -210,7 +225,7 @@ class AsyncDataActivity : AppCompatActivity() {
 //                Log.d("RxFlatMap", it.toString())
 //            }
 
-        val observable = Observable.just(1,2,3,4)
+        val observable = Observable.just(1, 2, 3, 4)
             .concatMap { data ->
 
                 Observable.interval(1, TimeUnit.SECONDS)
@@ -222,7 +237,6 @@ class AsyncDataActivity : AppCompatActivity() {
             }
 
 
-
     }
 
     @SuppressLint("CheckResult")
@@ -230,7 +244,7 @@ class AsyncDataActivity : AppCompatActivity() {
 
         Log.d("RxMap", "Before Subscribing ")
 
-        val observable = Observable.just(1,2,3,4)
+        val observable = Observable.just(1, 2, 3, 4)
             .subscribeOn(Schedulers.computation())
             .map {
 
@@ -240,13 +254,14 @@ class AsyncDataActivity : AppCompatActivity() {
             .filter {
 
                 Log.d("RxMap - filter", Thread.currentThread().name)
-                it.startsWith("A")}
+                it.startsWith("A")
+            }
             .observeOn(AndroidSchedulers.mainThread())
 
-            observable.subscribe {
-                Log.d("RxMap - onNext", Thread.currentThread().name)
-                Log.d("RxMap", it.toString())
-            }
+        observable.subscribe {
+            Log.d("RxMap - onNext", Thread.currentThread().name)
+            Log.d("RxMap", it.toString())
+        }
 
         Log.d("RxMap", "After Subscribing ${Thread.currentThread().name}")
 
@@ -254,7 +269,7 @@ class AsyncDataActivity : AppCompatActivity() {
 
     private fun filter() {
 
-        Observable.just(1,2,3,4)
+        Observable.just(1, 2, 3, 4)
             .filter { it % 2 == 0 }
             .subscribe {
                 Log.d("RxFilter", it.toString())
@@ -289,7 +304,7 @@ class AsyncDataActivity : AppCompatActivity() {
             emitter.onNext("a".toInt())
 
             emitter.onComplete()
-        }.subscribe(object: Observer<Int>{
+        }.subscribe(object : Observer<Int> {
             private lateinit var disposable: Disposable
             override fun onComplete() {
                 Log.d("Rx", "oncomplete")
@@ -300,12 +315,12 @@ class AsyncDataActivity : AppCompatActivity() {
             }
 
             override fun onNext(t: Int) {
-               Log.d("Rx", t.toString())
+                Log.d("Rx", t.toString())
                 disposable.dispose()
             }
 
             override fun onError(e: Throwable) {
-               Log.d("Rx error", e.message)
+                Log.d("Rx error", e.message)
             }
 
         })
@@ -334,7 +349,7 @@ class AsyncDataActivity : AppCompatActivity() {
         disposable = Observable.fromArray(1, 2, 3, 4, 5)
             .subscribeBy(
                 onNext = {
-                    if (it > 3){
+                    if (it > 3) {
                         Log.d("Rx", it.toString())
                         disposable.dispose()
                     } else {
@@ -353,7 +368,7 @@ class AsyncDataActivity : AppCompatActivity() {
             .subscribeBy(
                 onNext = {
 
-                        Log.d("Rx", it.toString())
+                    Log.d("Rx", it.toString())
 
                 },
                 onError = {
@@ -363,7 +378,6 @@ class AsyncDataActivity : AppCompatActivity() {
 
                 }
             )
-
 
 
     }

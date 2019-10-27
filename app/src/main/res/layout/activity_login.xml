@@ -36,6 +36,7 @@
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
+            android:id="@+id/txlUserName"
             style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
             android:layout_height="wrap_content"
             android:hint="@string/shr_hint_username">
